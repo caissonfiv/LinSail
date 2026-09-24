@@ -1,0 +1,34 @@
+name: Test and build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        python: ['3.10', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit and Linux PTY integration tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build single file
+        run: python scripts/build.py
+      - name: Verify release and local installation
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS
+          python linsail.pyz --version
+          LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install.sh
+          "$RUNNER_TEMP/linsail-bin/linsail" --version
+      - uses: actions/upload-artifact@v7
+        if: matrix.os == 'ubuntu-24.04' && matrix.python == '3.12'
+        with:
+          name: linsail-alpha
+          path: dist/*
