@@ -16,19 +16,25 @@ git push -u origin main
 
 先在 GitHub 创建空的公开仓库 `LinSail`。不要另外初始化 README 或 License，以免与本地首次提交冲突。项目已包含 MIT 许可。
 
-## 验证与预发布
+## 当前发布状态
+
+首个 `v0.1.0a1` Alpha 已通过手动触发的 `Import reviewed source and publish alpha` 工作流完成 Linux 测试、源码提交和公开发布。该工作流用于首次导入，源码包已在导入后从 main 移除，不应重复运行。
+
+`Test and build` 是后续持续测试工作流，只有只读仓库权限。**推送标签自动创建 Release 的工作流没有启用。** 后续版本目前由维护者手动发布；如需启用标签自动发布，应另行授权相应仓库写入权限。
+
+## 后续版本验证与手动预发布
 
 1. 检查 `Test and build` 工作流全部通过，包括真实 Linux PTY 测试。
 2. 在普通用户的 Linux 终端验收：`/shell`、cd/export 保留、Ctrl+]、Ctrl+C、sudo 提示与 SSH。
 3. 用实际模型完成至少一个只读任务和一个测试机软件安装任务。
-4. 更新版本、变更记录和已知限制，然后推送版本标签：
+4. 更新版本、变更记录和已知限制，使用新的版本号创建并推送标签。下面的 `vX.Y.Z` 是需要替换的占位符，不要重复发布首版标签：
 
 ```bash
-git tag v0.1.0a1
-git push origin v0.1.0a1
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-`Publish alpha release` 再次运行测试后发布 GitHub Pre-release，附上单文件程序、源码 ZIP、安装脚本与 SHA256。不要在功能未验证时改成稳定版。工作流所需权限仅为该仓库 contents 写入，不含外部部署密钥。
+5. 在 GitHub Releases 页面选择该标签，创建 Pre-release，附上 `python3 scripts/build.py` 生成的单文件程序、源码 ZIP、安装脚本与 SHA256。不要在功能未验证时改成稳定版。
 
 ## 安装验证
 
