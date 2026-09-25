@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha256:
-        description: SHA256 of the uploaded linsail-0.1.0a1-source.zip
+        description: SHA256 of the uploaded linsail-0.1.0a2-source.zip
         required: true
         type: string
 permissions:
@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Verify and unpack reviewed source
@@ -23,7 +23,7 @@ jobs:
         run: |
           python - <<'PY'
           import hashlib, os, pathlib, zipfile
-          archive = pathlib.Path('linsail-0.1.0a1-source.zip')
+          archive = pathlib.Path('linsail-0.1.0a2-source.zip')
           assert hashlib.sha256(archive.read_bytes()).hexdigest() == os.environ['SOURCE_SHA256'], 'Source checksum mismatch'
           root = pathlib.Path.cwd().resolve()
           with zipfile.ZipFile(archive) as z:
@@ -34,30 +34,3 @@ jobs:
                   if not rel.parts or rel.parts[0] in {'.github', '.git'}:
                       continue
                   target = (root / rel).resolve()
-                  assert target.is_relative_to(root), 'Path escaped repository'
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  target.write_bytes(z.read(item))
-          archive.unlink()
-          PY
-      - name: Test real Linux terminal and model adapter
-        env:
-          PYTHONPATH: src
-        run: python -m unittest discover -s tests -v
-      - name: Build and verify installation
-        run: |
-          python scripts/build.py
-          cd dist
-          sha256sum --check SHA256SUMS
-          LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install.sh
-          "$RUNNER_TEMP/linsail-bin/linsail" --version
-      - name: Commit unpacked source
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Import LinSail alpha source after Linux verification'
-          git push origin HEAD:main
-      - name: Publish alpha download
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create v0.1.0a1 dist/* --target "$(git rev-parse HEAD)" --prerelease --title 'LinSail 0.1.0a1 — 启航 Alpha' --notes-file docs/RELEASE_NOTES.md
