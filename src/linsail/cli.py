@@ -95,8 +95,14 @@ def chat(profile_name=None, terminal_only=False):
     data = load_config()
     name = profile_name or data.get("active")
     if not terminal_only and name not in data["profiles"]:
-        print("尚未配置模型。先运行 linsail configure；或 linsail --terminal 体验终端接管。")
-        return
+        if profile_name:
+            raise ValueError(f"未找到模型配置：{profile_name}。可运行 linsail configure 添加。")
+        print("欢迎使用启航 LinSail！首次使用，先连接你的模型服务。")
+        configure()
+        data = load_config()
+        name = data.get("active")
+        if name not in data["profiles"]:
+            return
     provider = None if terminal_only else connect(data["profiles"][name])
     if not terminal_only and provider is None:
         return
@@ -160,13 +166,16 @@ def chat(profile_name=None, terminal_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description="启航 LinSail — 自然语言与手动终端接力的 Linux 助手")
-    parser.add_argument("action", nargs="?", choices=["configure", "doctor"])
+    parser.add_argument("action", nargs="?", choices=["configure", "doctor", "install"])
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--profile", help="使用已保存的模型配置")
     parser.add_argument("--terminal", action="store_true", help="无需 API Key 体验手动终端")
     args = parser.parse_args()
     try:
-        if args.action == "configure":
+        if args.action == "install":
+            from .installer import install
+            install()
+        elif args.action == "configure":
             configure()
         elif args.action == "doctor":
             doctor()

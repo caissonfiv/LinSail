@@ -4,7 +4,7 @@
 
 LinSail 是一个轻量 Linux 终端智能体：你描述任务，它提出命令；你逐条确认，它执行并读取结果，继续检查或修复。你可以随时接管持久 Bash，保留工作目录和环境变量，再回到对话。
 
-**当前版本：0.1.0a1 / Alpha。** 适合测试机和早期体验；不承诺无人值守初始化。没有第三方 Python 运行依赖，不需要 Node.js、Docker 或本地大模型。需要 **Linux、Python 3.10+、Bash、交互 TTY**。极简系统可能需要先安装 Python 和 Bash。
+**当前版本：0.1.0a2 / Alpha。** 适合测试机和早期体验；不承诺无人值守初始化。没有第三方 Python 运行依赖，不需要 Node.js、Docker 或本地大模型。需要 **Linux、Python 3.10+、Bash、交互 TTY**。极简系统可能需要先安装 Python 和 Bash。
 
 [English](README.en.md) · [架构](docs/ARCHITECTURE.md) · [托管模型接入](docs/HOSTED_MODELS.md) · [发布流程](docs/PUBLISHING.md) · [隐私与执行边界](SECURITY.md)
 
@@ -21,20 +21,25 @@ LinSail 是一个轻量 Linux 终端智能体：你描述任务，它提出命�
 
 ## 快速开始
 
-从本仓库 **Releases** 下载同一版本的 `linsail.pyz`、`install.sh` 和 `SHA256SUMS`，放到同一个目录。Alpha 发布页标记为 Pre-release，不一定显示在 GitHub 的 latest 链接下。
+在普通用户的 Bash / Zsh 终端中执行，一键安装并启动：
 
 ```bash
-# 无需安装即可启动
-python3 linsail.pyz configure
-python3 linsail.pyz
-
-# 可选：安装到 ~/.local/bin/linsail
-sh install.sh
-~/.local/bin/linsail configure
-~/.local/bin/linsail
+bash -o pipefail -c 'curl -fsSL https://github.com/caissonfiv/LinSail/releases/download/v0.1.0a2/install.sh | sh' && export PATH="$HOME/.local/bin:$PATH" && linsail
 ```
 
-安装脚本校验 `linsail.pyz` 后复制到用户目录。它不会修改 Shell 启动文件、安装系统包或请求 sudo。若 `~/.local/bin` 已在 PATH，可以直接输入 `linsail`。升级时使用同样流程；不会覆盖模型配置。
+以后直接输入 `linsail`。首次启动自动引导配置模型接口和模型名称，再提示输入 API Key；后续可用 `linsail configure` 修改配置。需要 Linux、Python 3.10+、Bash；上述下载命令还需要 curl。
+
+安装器自动下载并校验程序，安装到 `~/.local/bin/linsail`，为当前默认 Shell（Bash / Zsh / Fish）写入 PATH 配置。原有启动文件首次修改前备份为 `.linsail.bak`，重复安装不重复添加配置。升级使用同一流程，不覆盖模型配置。安装不请求 sudo，也不自动安装系统包。
+
+安装子进程不能改变父终端的环境，上面的一键命令因此包含当前窗口的 `export PATH`。新开终端无需再执行。Fish 用户可下载运行安装脚本后新开终端输入 `linsail`。
+
+也可从本仓库 Releases 下载 `install.sh` 后执行 `sh install.sh`，它会自行下载其余文件；离线安装则把同一版本的 `linsail.pyz`、`install.sh`、`SHA256SUMS` 放在同一目录。若不希望修改 Shell 配置，用 `LINSAIL_NO_PATH=1 sh install.sh`，随后通过完整路径启动。自定义目录可设置 `LINSAIL_BIN_DIR`。
+
+无需安装也能启动：
+
+```bash
+python3 linsail.pyz
+```
 
 没有模型也可以先体验 Shell：
 

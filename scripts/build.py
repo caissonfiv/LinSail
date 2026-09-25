@@ -8,11 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 DIST.mkdir(exist_ok=True)
-VERSION = "0.1.0a1"
+VERSION = "0.1.0a2"
 
 
 def entry(archive, name, content):
     item = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+    item.create_system = 3
     item.compress_type = zipfile.ZIP_DEFLATED
     item.external_attr = 0o644 << 16
     archive.writestr(item, content)
