@@ -3,14 +3,22 @@ on:
   workflow_dispatch:
     inputs:
       source_sha256:
-        description: SHA256 of the uploaded linsail-0.1.0a3-source.zip
+        description: SHA256 of the uploaded linsail-0.1.0a4-source.zip
         required: true
         type: string
 permissions:
-  contents: write
+  contents: read
 jobs:
-  import:
-    runs-on: ubuntu-22.04
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: x86_64
+          - runner: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -23,7 +31,7 @@ jobs:
         run: |
           python - <<'PY'
           import hashlib, os, pathlib, zipfile
-          archive = pathlib.Path('linsail-0.1.0a3-source.zip')
+          archive = pathlib.Path('linsail-0.1.0a4-source.zip')
           assert hashlib.sha256(archive.read_bytes()).hexdigest() == os.environ['SOURCE_SHA256'], 'Source checksum mismatch'
           root = pathlib.Path.cwd().resolve()
           with zipfile.ZipFile(archive) as z:
@@ -38,28 +46,22 @@ jobs:
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(z.read(item))
           archive.unlink()
-          patch = pathlib.Path('scripts/install-python.sh')
-          old = 'import ssl, sys; sys.exit(0 if ssl.create_default_context().get_ca_certs() else 1)'
-          new = 'import ssl, sys, pathlib; paths=("/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt", "/etc/ssl/ca-bundle.pem"); sys.exit(0 if ssl.create_default_context().get_ca_certs() or any(pathlib.Path(p).is_file() and ssl.create_default_context(cafile=p).get_ca_certs() for p in paths) else 1)'
-          patch.write_text(patch.read_text().replace(old, new))
-          patch = pathlib.Path('tests/test_installer.py')
-          patch.write_text(patch.read_text().replace("env=env, check=True, capture_output=True, text=True)", "env=env, check=True, text=True)", 1))
           PY
-      - name: Test real Linux terminal and model adapter
+      - name: Test real Linux terminal and lifecycle
         env:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
-      - name: Build and verify installation
+      - name: Build and verify native binary
         run: |
           python scripts/build.py
           python -m pip install pyinstaller==6.22.3
           python scripts/build_binary.py
-          python scripts/smoke_binary.py dist/linsail-linux-x86_64
+          python scripts/smoke_binary.py dist/linsail-linux-${{ matrix.arch }}
           cd dist
           sha256sum --check SHA256SUMS
           LINSAIL_NO_PATH=1 LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install.sh
           "$RUNNER_TEMP/linsail-bin/linsail" --version
-      - name: Verify without Python or curl in minimal Linux
+      - name: Verify minimal Linux without Python or download tools
         run: |
           docker run --rm --user 1000:1000 -e HOME=/tmp/home -e SHELL=/bin/bash -v "$PWD/dist:/release:ro" ubuntu:22.04 sh -ec '
             ! command -v python3
@@ -68,16 +70,77 @@ jobs:
             mkdir -p "$HOME"
             sh /release/install.sh
             "$HOME/.local/bin/linsail" --version
-            "$HOME/.local/bin/linsail" doctor
+            "$HOME/.local/bin/linsail" uninstall --yes
+            test ! -e "$HOME/.local/bin/linsail"
           '
-      - name: Commit unpacked source
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.arch }}
+          path: dist/*
+          retention-days: 7
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify and unpack reviewed source
+        env:
+          SOURCE_SHA256: ${{ inputs.source_sha256 }}
+        run: |
+          python - <<'PY'
+          import hashlib, os, pathlib, zipfile
+          archive = pathlib.Path('linsail-0.1.0a4-source.zip')
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == os.environ['SOURCE_SHA256'], 'Source checksum mismatch'
+          root = pathlib.Path.cwd().resolve()
+          with zipfile.ZipFile(archive) as z:
+              for item in z.infolist():
+                  p = pathlib.PurePosixPath(item.filename)
+                  assert p.parts[0] == 'linsail' and '..' not in p.parts, 'Invalid archive path'
+                  rel = pathlib.Path(*p.parts[1:])
+                  if not rel.parts or rel.parts[0] in {'.github', '.git'}:
+                      continue
+                  target = (root / rel).resolve()
+                  assert target.is_relative_to(root), 'Path escaped repository'
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(z.read(item))
+          archive.unlink()
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: downloaded
+      - name: Assemble tested release assets
+        run: |
+          python - <<'PY'
+          import pathlib, shutil, hashlib
+          root = pathlib.Path('release-dist')
+          root.mkdir()
+          common = ['linsail.pyz', 'install.sh', 'install-python.sh', 'linsail-0.1.0a4-source.zip']
+          for name in common:
+              shutil.copyfile(pathlib.Path('downloaded/release-x86_64') / name, root / name)
+          for arch in ['x86_64', 'arm64']:
+              for name in [f'linsail-linux-{arch}', f'THIRD_PARTY_NOTICES-linux-{arch}.txt']:
+                  shutil.copyfile(pathlib.Path('downloaded') / f'release-{arch}' / name, root / name)
+          sums = ''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in sorted(root.iterdir()))
+          (root / 'SHA256SUMS').write_text(sums)
+          PY
+          cd release-dist
+          sha256sum --check SHA256SUMS
+      - name: Commit verified source
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Import LinSail alpha source after Linux verification'
+          git add src scripts tests docs README.md README.en.md pyproject.toml .gitignore
+          git add -u linsail-0.1.0a4-source.zip
+          git commit -m 'Release a4 lifecycle management and ARM64 support'
           git push origin HEAD:main
       - name: Publish alpha download
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v0.1.0a3 dist/linsail-linux-x86_64 dist/linsail.pyz dist/install.sh dist/install-python.sh dist/SHA256SUMS dist/linsail-0.1.0a3-source.zip dist/THIRD_PARTY_NOTICES.txt --target "$(git rev-parse HEAD)" --prerelease --title 'LinSail 0.1.0a3 — 启航 Alpha' --notes-file docs/RELEASE_NOTES.md
+        run: gh release create v0.1.0a4 release-dist/* --target "$(git rev-parse HEAD)" --prerelease --title 'LinSail 0.1.0a4 — ARM64 与安装维护' --notes-file docs/RELEASE_NOTES.md
