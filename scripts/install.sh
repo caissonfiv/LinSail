@@ -1,13 +1,30 @@
 #!/bin/sh
-# Standalone Linux x86_64 installer: no Python required.
+# Standalone Linux installer: no Python required.
 set -eu
 [ "$(uname -s)" = Linux ] || { echo '此安装包仅支持 Linux。' >&2; exit 1; }
 [ "$(id -u)" != 0 ] || { echo '请以普通用户运行，不要使用 sudo。' >&2; exit 1; }
-[ "$(uname -m)" = x86_64 ] || { echo '独立版目前支持 x86_64；其他架构请使用 install-python.sh。' >&2; exit 1; }
+case "$(uname -m)" in
+    x86_64) arch=x86_64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    *) echo '独立版支持 x86_64 / ARM64；其他架构请使用 install-python.sh。' >&2; exit 1 ;;
+esac
+libc=$(getconf GNU_LIBC_VERSION 2>/dev/null || :)
+case "$libc" in
+    'glibc '*) ;;
+    *) echo '独立版需要 glibc 2.35+；Alpine/musl 请使用 Python 版。' >&2; exit 1 ;;
+esac
+libc_version=${libc#glibc }
+libc_major=${libc_version%%.*}
+libc_minor=${libc_version#*.}
+libc_minor=${libc_minor%%.*}
+if [ "$libc_major" -lt 2 ] || { [ "$libc_major" -eq 2 ] && [ "$libc_minor" -lt 35 ]; }; then
+    echo '独立版需要 glibc 2.35+；旧系统请使用 Python 版。' >&2
+    exit 1
+fi
 command -v bash >/dev/null 2>&1 || { echo '请先通过系统包管理器安装 Bash。' >&2; exit 1; }
 command -v sha256sum >/dev/null 2>&1 || { echo '请安装 coreutils（需要 sha256sum 校验下载内容）。' >&2; exit 1; }
-base=https://github.com/caissonfiv/LinSail/releases/download/v0.1.0a3
-asset=linsail-linux-x86_64
+base=https://github.com/caissonfiv/LinSail/releases/download/v0.1.0a4
+asset=linsail-linux-$arch
 local_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 stage=$(mktemp -d)
 trap 'rm -rf -- "$stage"' EXIT HUP INT TERM

@@ -63,7 +63,7 @@ import sys
 import tempfile
 import urllib.request
 
-version = '0.1.0a3'
+version = '0.1.0a4'
 local = pathlib.Path(sys.argv[1])
 base = f'https://github.com/caissonfiv/LinSail/releases/download/v{version}'
 try:

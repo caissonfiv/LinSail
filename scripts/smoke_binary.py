@@ -1,5 +1,7 @@
 """Verify frozen CLI, installation and real PTY handoff with no Python on PATH."""
 import os
+import json
+import hashlib
 import pty
 import select
 import shutil
@@ -49,4 +51,18 @@ with tempfile.TemporaryDirectory() as temp:
             process.kill()
             process.wait()
         os.close(master)
+    # Exercise frozen self-replacement and backup validation without networking.
+    record_path = installed.with_name('.linsail-install.json')
+    record = json.loads(record_path.read_text())
+    saved = installed.read_bytes()
+    installed.with_name('.linsail-previous').write_bytes(saved)
+    record['previous'] = dict(kind='binary', version=record['version'], sha256=hashlib.sha256(saved).hexdigest())
+    record_path.write_text(json.dumps(record))
+    subprocess.run([str(installed), 'rollback'], env=env, check=True, timeout=40)
+    config = home / '.config/linsail/config.json'
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text('{"profiles": {}, "active": ""}')
+    subprocess.run([str(installed), 'uninstall', '--yes'], env=env, check=True, timeout=30)
+    assert not installed.exists() and config.exists()
+    assert '# >>> LinSail PATH >>>' not in (home / '.bashrc').read_text()
 print('Frozen install and PTY smoke passed with no python/curl/wget on PATH.')

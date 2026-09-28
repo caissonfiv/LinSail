@@ -1,9 +1,10 @@
-# 启航 LinSail 0.1.0a3 — 内置 Python 的独立版
+# 启航 LinSail 0.1.0a4 — ARM64 与安装维护
 
-- 新增 `linsail-linux-x86_64` 单文件程序，运行不需要安装 Python、pip 或 curl。
-- 下载后 `chmod +x linsail-linux-x86_64`，再执行 `./linsail-linux-x86_64 install`；新开终端输入 `linsail`。
-- 主安装器支持 curl / wget 下载及本地校验安装；没有下载工具时可以复制文件到目标机。
-- 保留 `.pyz` 与 `install-python.sh`；备用 Python 安装器支持经确认后通过 apt-get / dnf 安装缺失依赖。
-- 隔离封装运行库对系统 Bash 子进程的影响。
+- 新增 ARM64 独立文件，安装脚本自动选择 x86_64 / ARM64，并检查 glibc 2.35+。
+- `linsail update --check` 检查更新；`linsail update` 校验和试运行通过后更新。
+- `linsail update --to 0.1.0a4` 固定版本；支持 alpha / stable 通道。
+- `linsail rollback` 回到保留的上一版。
+- `linsail uninstall` 确认后卸载程序，保留模型配置和用户修改的 Shell 内容。
+- 并发互斥、写入错误恢复及安装记录校验。
 
-独立版要求 Linux x86_64、glibc 2.35+、Bash、系统 CA 证书和可执行临时目录；不适用于 ARM、Alpine/musl 或 Windows。仍为 Alpha，付费托管模型服务尚未上线。
+从旧版升级需要先运行本版本安装器。独立版内置 Python，运行及更新无需 curl 或 pip。需要 Linux x86_64 / ARM64、glibc 2.35+、Bash、系统 CA 证书及可执行临时目录。仍为 Alpha，Alpine/musl 暂不提供独立包。

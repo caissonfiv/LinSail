@@ -28,19 +28,23 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ProviderError("接口发生重定向，已停止以避免凭证被转发；请核对 API 地址。")
 
 
+def tls_context():
+    context = ssl.create_default_context()
+    # Frozen Python may retain build-machine certificate paths.
+    if not context.get_ca_certs() and not os.environ.get('SSL_CERT_FILE') and not os.environ.get('SSL_CERT_DIR'):
+        for path in ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem'):
+            if Path(path).is_file():
+                context.load_verify_locations(cafile=path)
+                break
+    return context
+
+
 class Provider:
     def __init__(self, profile, key="", timeout=60):
         self.profile = validate_profile(profile)
         self.key = key
         self.timeout = timeout
-        context = ssl.create_default_context()
-        # Frozen Python may retain build-machine certificate paths.
-        if not context.get_ca_certs() and not os.environ.get('SSL_CERT_FILE') and not os.environ.get('SSL_CERT_DIR'):
-            for path in ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem'):
-                if Path(path).is_file():
-                    context.load_verify_locations(cafile=path)
-                    break
-        self.opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
+        self.opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=tls_context()))
 
     def complete(self, messages):
         body = {"model": self.profile["model"], "messages": messages, "tools": TOOLS, "stream": False}

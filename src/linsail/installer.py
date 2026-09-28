@@ -49,8 +49,8 @@ def atomic_write(path, content, mode):
             os.unlink(temporary)
 
 
-def configure_path(home, directory, shell="bash", environ=None):
-    home, directory = Path(home), Path(directory).absolute()
+def shell_targets(home, shell="bash", environ=None):
+    home = Path(home)
     env = environ or {}
     shell = Path(shell).name
     if shell in {"bash", "sh", "dash", ""}:
@@ -65,7 +65,13 @@ def configure_path(home, directory, shell="bash", environ=None):
         root = Path(env.get("XDG_CONFIG_HOME") or home / ".config")
         targets = [(root / "fish" / "conf.d" / "linsail.fish", True)]
     else:
-        raise ValueError(f"暂不自动修改 {shell} 的启动文件。设置 LINSAIL_NO_PATH=1 跳过，手动将 {directory} 加入 PATH。")
+        raise ValueError(f"暂不自动修改 {shell} 的启动文件。设置 LINSAIL_NO_PATH=1 跳过，手动配置 PATH。")
+    return targets
+
+
+def configure_path(home, directory, shell="bash", environ=None):
+    directory = Path(directory).absolute()
+    targets = shell_targets(home, shell, environ)
     changes = []
     for path, fish in targets:
         if path.is_symlink():
@@ -98,15 +104,25 @@ def install():
     if not frozen and source.suffix != ".pyz":
         raise RuntimeError("请通过官方 install.sh 或 python3 linsail.pyz install 安装。")
     home = Path.home()
-    directory = Path(os.environ.get("LINSAIL_BIN_DIR") or home / ".local" / "bin").expanduser().absolute()
+    directory = Path(os.environ.get("LINSAIL_BIN_DIR") or home / ".local" / "bin").expanduser().resolve()
     directory.mkdir(parents=True, exist_ok=True)
     destination = directory / "linsail"
-    if destination.is_symlink():
-        raise ValueError(f"不覆盖现有符号链接：{destination}")
-    if os.environ.get("LINSAIL_NO_PATH") != "1":
-        for path in configure_path(home, directory, os.environ.get("SHELL", "bash"), os.environ):
-            print("已配置 PATH：" + path)
-    atomic_write(destination, source.read_bytes(), 0o755)
+    from . import __version__
+    from .maintenance import deploy, install_lock, read_record, reject_links, sidecars
+    with install_lock(directory):
+        reject_links(destination, *sidecars(destination))
+        files = []
+        if sidecars(destination)[0].exists():
+            files = read_record(destination).get('shell_files', [])
+        if os.environ.get("LINSAIL_NO_PATH") != "1":
+            shell = os.environ.get("SHELL", "bash")
+            for path in configure_path(home, directory, shell, os.environ):
+                print("已配置 PATH：" + path)
+            for path, fish in shell_targets(home, shell, os.environ):
+                item = dict(path=str(path.absolute()), fish=fish)
+                if item not in files:
+                    files.append(item)
+        deploy(destination, source.read_bytes(), 'binary' if frozen else 'pyz', __version__, files)
     print(f"\n启航 LinSail 安装成功：{destination}")
     print("新开终端后直接输入：linsail（首次运行自动配置模型）")
     print("安装子进程不能改变当前终端的 PATH。Bash/Zsh 当前窗口执行：")

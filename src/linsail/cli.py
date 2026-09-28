@@ -166,13 +166,29 @@ def chat(profile_name=None, terminal_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description="启航 LinSail — 自然语言与手动终端接力的 Linux 助手")
-    parser.add_argument("action", nargs="?", choices=["configure", "doctor", "install"])
+    parser.add_argument("action", nargs="?", choices=["configure", "doctor", "install", "update", "rollback", "uninstall"])
+    parser.add_argument('--check', action='store_true', help='仅检查更新，不下载或替换')
+    parser.add_argument('--to', help='更新到指定版本，例如 0.1.0a4')
+    parser.add_argument('--channel', choices=['stable', 'alpha'], help='更新通道；默认跟随当前版本')
+    parser.add_argument('--yes', action='store_true', help='确认卸载程序，保留用户配置')
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--profile", help="使用已保存的模型配置")
     parser.add_argument("--terminal", action="store_true", help="无需 API Key 体验手动终端")
     args = parser.parse_args()
+    if (args.check or args.to or args.channel) and args.action != 'update':
+        parser.error('--check、--to、--channel 仅用于 update')
+    if args.yes and args.action != 'uninstall':
+        parser.error('--yes 仅用于 uninstall')
     try:
-        if args.action == "install":
+        if args.action in {'update', 'rollback', 'uninstall'}:
+            from . import maintenance
+            if args.action == 'update':
+                maintenance.update(args.to, args.channel, args.check)
+            elif args.action == 'rollback':
+                maintenance.rollback()
+            else:
+                maintenance.uninstall(args.yes)
+        elif args.action == "install":
             from .installer import install
             install()
         elif args.action == "configure":

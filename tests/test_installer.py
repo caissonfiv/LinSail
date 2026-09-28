@@ -99,7 +99,7 @@ class FullInstallTests(unittest.TestCase):
             for _ in range(2):
                 subprocess.run(['sh', str(release / 'install-python.sh')], env=env, check=True, text=True)
             result = subprocess.run(['bash', '--noprofile', '--norc', '-c', 'source "$HOME/.bashrc"; linsail --version'], env=env, check=True, capture_output=True, text=True)
-            self.assertIn('0.1.0a3', result.stdout)
+            self.assertIn('0.1.0a4', result.stdout)
             self.assertEqual((home / '.bashrc').read_text().count(START), 1)
             (release / 'linsail.pyz').write_bytes(b'tampered')
             result = subprocess.run(['sh', str(release / 'install-python.sh')], env=env, capture_output=True, text=True)

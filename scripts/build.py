@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 DIST.mkdir(exist_ok=True)
-VERSION = "0.1.0a3"
+VERSION = "0.1.0a4"
 
 
 def entry(archive, name, content):
