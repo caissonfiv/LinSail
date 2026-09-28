@@ -93,8 +93,9 @@ def configure_path(home, directory, shell="bash", environ=None):
 def install():
     if not sys.platform.startswith("linux") or os.geteuid() == 0:
         raise RuntimeError("请在 Linux 下使用普通用户安装，不要使用 sudo。")
-    source = Path(sys.argv[0]).resolve()
-    if source.suffix != ".pyz":
+    frozen = getattr(sys, 'frozen', False)
+    source = Path(sys.executable if frozen else sys.argv[0]).resolve()
+    if not frozen and source.suffix != ".pyz":
         raise RuntimeError("请通过官方 install.sh 或 python3 linsail.pyz install 安装。")
     home = Path.home()
     directory = Path(os.environ.get("LINSAIL_BIN_DIR") or home / ".local" / "bin").expanduser().absolute()

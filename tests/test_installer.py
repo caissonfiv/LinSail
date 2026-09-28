@@ -92,17 +92,17 @@ class FullInstallTests(unittest.TestCase):
             home.mkdir()
             release = Path(temp) / 'release'
             release.mkdir()
-            for name in ('install.sh', 'linsail.pyz', 'SHA256SUMS'):
+            for name in ('install-python.sh', 'linsail.pyz', 'SHA256SUMS'):
                 shutil.copyfile(root / 'dist' / name, release / name)
             env = {**os.environ, 'HOME': str(home), 'SHELL': '/bin/bash', 'LINSAIL_BIN_DIR': str(home / '.local/bin')}
             env.pop('LINSAIL_NO_PATH', None)
             for _ in range(2):
-                subprocess.run(['sh', str(release / 'install.sh')], env=env, check=True, capture_output=True, text=True)
+                subprocess.run(['sh', str(release / 'install-python.sh')], env=env, check=True, text=True)
             result = subprocess.run(['bash', '--noprofile', '--norc', '-c', 'source "$HOME/.bashrc"; linsail --version'], env=env, check=True, capture_output=True, text=True)
-            self.assertIn('0.1.0a2', result.stdout)
+            self.assertIn('0.1.0a3', result.stdout)
             self.assertEqual((home / '.bashrc').read_text().count(START), 1)
             (release / 'linsail.pyz').write_bytes(b'tampered')
-            result = subprocess.run(['sh', str(release / 'install.sh')], env=env, capture_output=True, text=True)
+            result = subprocess.run(['sh', str(release / 'install-python.sh')], env=env, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertNotEqual((home / '.local/bin/linsail').read_bytes(), b'tampered')
 
@@ -132,3 +132,4 @@ class OnboardingTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

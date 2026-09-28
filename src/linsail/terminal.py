@@ -62,6 +62,12 @@ class Terminal:
                     os.close(control_w)
                 os.set_inheritable(9, True)
                 child_env = dict(os.environ if env is None else env)
+                # PyInstaller libraries belong to this app, not system commands.
+                if getattr(sys, 'frozen', False):
+                    original = child_env.pop('LD_LIBRARY_PATH_ORIG', None)
+                    child_env.pop('LD_LIBRARY_PATH', None)
+                    if original is not None:
+                        child_env['LD_LIBRARY_PATH'] = original
                 child_env["HISTFILE"] = "/dev/null"
                 os.execve(bash, [bash, "--noprofile", "--rcfile", str(rc), "-i"], child_env)
             except BaseException:

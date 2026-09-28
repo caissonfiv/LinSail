@@ -1,16 +1,9 @@
-# 启航 LinSail 0.1.0a2 — Alpha
+# 启航 LinSail 0.1.0a3 — 内置 Python 的独立版
 
-安装后直接运行 `linsail`，首次运行自动引导模型配置。
+- 新增 `linsail-linux-x86_64` 单文件程序，运行不需要安装 Python、pip 或 curl。
+- 下载后 `chmod +x linsail-linux-x86_64`，再执行 `./linsail-linux-x86_64 install`；新开终端输入 `linsail`。
+- 主安装器支持 curl / wget 下载及本地校验安装；没有下载工具时可以复制文件到目标机。
+- 保留 `.pyz` 与 `install-python.sh`；备用 Python 安装器支持经确认后通过 apt-get / dnf 安装缺失依赖。
+- 隔离封装运行库对系统 Bash 子进程的影响。
 
-- 安装脚本可独立下载程序，并校验 SHA256。
-- 自动配置 Bash / Zsh / Fish 的 PATH，备份现有启动文件，重复安装不重复添加。
-- 支持自定义安装目录和跳过 PATH 配置。
-- 保留单文件、无第三方 Python 运行依赖、本机与 SSH 使用方式。
-
-在普通用户的 Bash / Zsh 终端执行：
-
-```bash
-bash -o pipefail -c 'curl -fsSL https://github.com/caissonfiv/LinSail/releases/download/v0.1.0a2/install.sh | sh' && export PATH="$HOME/.local/bin:$PATH" && linsail
-```
-
-以后输入 `linsail` 即可。需要 Linux、Python 3.10+、Bash，下载命令需要 curl。仍为 Alpha；付费托管模型服务尚未上线。
+独立版要求 Linux x86_64、glibc 2.35+、Bash、系统 CA 证书和可执行临时目录；不适用于 ARM、Alpine/musl 或 Windows。仍为 Alpha，付费托管模型服务尚未上线。

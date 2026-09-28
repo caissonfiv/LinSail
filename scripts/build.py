@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 DIST.mkdir(exist_ok=True)
-VERSION = "0.1.0a2"
+VERSION = "0.1.0a3"
 
 
 def entry(archive, name, content):
@@ -28,16 +28,17 @@ with app.open("wb") as handle:
             entry(archive, path.relative_to(ROOT / "src").as_posix(), path.read_bytes())
 app.chmod(0o755)
 shutil.copyfile(ROOT / "scripts" / "install.sh", DIST / "install.sh")
+shutil.copyfile(ROOT / "scripts" / "install-python.sh", DIST / "install-python.sh")
 
 source = DIST / f"linsail-{VERSION}-source.zip"
 with zipfile.ZipFile(source, "w") as archive:
     for path in sorted(ROOT.rglob("*")):
         rel = path.relative_to(ROOT)
-        if path.is_file() and not any(part in {"dist", ".git", "__pycache__", ".venv"} for part in rel.parts):
+        if path.is_file() and not any(part in {"dist", "build", ".git", "__pycache__", ".venv"} for part in rel.parts) and path.suffix != '.spec':
             entry(archive, "linsail/" + rel.as_posix(), path.read_bytes())
 
 with (DIST / "SHA256SUMS").open("w", encoding="ascii", newline="\n") as handle:
-    for path in [app, DIST / "install.sh", source]:
+    for path in [app, DIST / "install.sh", DIST / "install-python.sh", source]:
         handle.write(hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.name + "\n")
 print(f"Built {app.name}: {app.stat().st_size:,} bytes")
 print(f"Built {source.name}: {source.stat().st_size:,} bytes")

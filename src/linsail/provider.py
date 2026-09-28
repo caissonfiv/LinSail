@@ -1,9 +1,13 @@
 """Dependency-free Chat Completions tool-calling adapter."""
 import json
+import os
+import ssl
+from pathlib import Path
 import urllib.error
 import urllib.request
 
 from .config import validate_profile
+from . import __version__
 from .safety import redact
 
 TOOLS = [{"type": "function", "function": {
@@ -29,12 +33,19 @@ class Provider:
         self.profile = validate_profile(profile)
         self.key = key
         self.timeout = timeout
-        self.opener = urllib.request.build_opener(NoRedirect())
+        context = ssl.create_default_context()
+        # Frozen Python may retain build-machine certificate paths.
+        if not context.get_ca_certs() and not os.environ.get('SSL_CERT_FILE') and not os.environ.get('SSL_CERT_DIR'):
+            for path in ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem'):
+                if Path(path).is_file():
+                    context.load_verify_locations(cafile=path)
+                    break
+        self.opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
 
     def complete(self, messages):
         body = {"model": self.profile["model"], "messages": messages, "tools": TOOLS, "stream": False}
         encoded = redact(json.dumps(body, ensure_ascii=False), [self.key]).encode("utf-8")
-        headers = {"Content-Type": "application/json", "User-Agent": "linsail/0.1.0a1"}
+        headers = {"Content-Type": "application/json", "User-Agent": "linsail/" + __version__}
         if self.key:
             headers["Authorization"] = "Bearer " + self.key
         request = urllib.request.Request(self.profile["base_url"] + "/chat/completions", data=encoded, headers=headers)

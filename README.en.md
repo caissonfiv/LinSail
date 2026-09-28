@@ -2,15 +2,18 @@
 
 A small Linux terminal agent for natural-language setup and a persistent human-operated shell.
 
-**0.1.0a2 — Alpha.** Requires Linux, Python 3.10+, Bash and an interactive terminal. No third-party runtime dependencies. The CLI currently uses Chinese labels; prompts and model responses can use other languages.
+**0.1.0a3 — Alpha.** The Linux x86_64 executable bundles Python. Runtime requires glibc 2.35+, Bash, system CA certificates and a TTY; Python, pip and curl are not required. Download `linsail-linux-x86_64` from Releases:
 
-Install and launch from Bash / Zsh as an ordinary user (requires curl):
-
-```bash
-bash -o pipefail -c 'curl -fsSL https://github.com/caissonfiv/LinSail/releases/download/v0.1.0a2/install.sh | sh' && export PATH="$HOME/.local/bin:$PATH" && linsail
+```sh
+chmod +x linsail-linux-x86_64
+./linsail-linux-x86_64 install
+export PATH="$HOME/.local/bin:$PATH"
+linsail
 ```
 
-Then run `linsail` directly. First launch guides model setup. The installer downloads and checks the application, adds the install directory to your default Bash/Zsh/Fish startup configuration, and backs up existing files as `.linsail.bak`. Reinstalling is idempotent. Set `LINSAIL_NO_PATH=1` to opt out of shell configuration. Downloading `install.sh` alone also works; for offline installation place the app and SHA256SUMS beside it. A standalone installer cannot alter its parent shell: open a new terminal afterward. No sudo or automatic system package installation.
+First launch guides model setup. The installer adds PATH for Bash/Zsh/Fish and backs up existing startup files. With the executable, `install.sh` and `SHA256SUMS` in one folder, `sh install.sh` verifies and installs offline. Online installation uses either curl or wget. Without either tool, copy the release files from another computer. Keep the release's third-party notices when redistributing.
+
+The standalone build does not target ARM, Alpine/musl or Windows. Its temporary directory must allow execution. `linsail.pyz` and `install-python.sh` remain available for systems with Python 3.10+. The Python installer can offer to install missing dependencies with apt-get/dnf and sudo; set `LINSAIL_INSTALL_DEPS=0` to forbid package changes.
 
 Configure a tool-capable Chat Completions endpoint and your model ID. Enter your own API key at startup or supply it through the configured environment variable. Hosted provider profiles use the same protocol; LinSail's paid hosted service is not launched yet.
 

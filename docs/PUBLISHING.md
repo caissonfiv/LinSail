@@ -18,7 +18,7 @@ git push -u origin main
 
 ## 当前发布状态
 
-首个 `v0.1.0a1` Alpha 已通过手动触发的 `Import reviewed source and publish alpha` 工作流完成 Linux 测试、源码提交和公开发布。该工作流用于首次导入，源码包已在导入后从 main 移除，不应重复运行。
+首个 `v0.1.0a1` Alpha 已通过手动触发的 `Import reviewed source and publish alpha` 工作流完成 Linux 测试、源码提交和公开发布。每次导入需要上传新版本源码包、更新手动工作流中的版本和校验和；导入后删除临时源码包。不要对已完成的版本重复运行。
 
 `Test and build` 是后续持续测试工作流，只有只读仓库权限。**推送标签自动创建 Release 的工作流没有启用。** 后续版本目前由维护者手动发布；如需启用标签自动发布，应另行授权相应仓库写入权限。
 
@@ -51,3 +51,16 @@ sh install.sh
 ## 卸载
 
 默认安装位置是 `~/.local/bin/linsail`，删除这个文件即可移除程序。配置保留在 `~/.config/linsail`，确认不需要后再手动删除。自定义安装目录或 XDG_CONFIG_HOME 时以实际配置为准。
+
+## 独立版构建
+
+在 Ubuntu 22.04 x86_64，Python 3.12 环境执行：
+
+```sh
+python -m pip install pyinstaller==6.22.3
+python scripts/build.py
+python scripts/build_binary.py
+python scripts/smoke_binary.py dist/linsail-linux-x86_64
+```
+
+发布 `dist` 中本版本文件，包括 THIRD_PARTY_NOTICES.txt。独立版测试须包含不带 Python/curl 的最小 Linux 容器。
