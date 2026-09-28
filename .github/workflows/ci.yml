@@ -25,7 +25,7 @@ jobs:
           cd dist
           sha256sum --check SHA256SUMS
           python linsail.pyz --version
-          LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install.sh
+          LINSAIL_NO_PATH=1 LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install-python.sh
           "$RUNNER_TEMP/linsail-bin/linsail" --version
       - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-24.04' && matrix.python == '3.12'
