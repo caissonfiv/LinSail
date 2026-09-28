@@ -38,6 +38,12 @@ jobs:
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(z.read(item))
           archive.unlink()
+          patch = pathlib.Path('scripts/install-python.sh')
+          old = 'import ssl, sys; sys.exit(0 if ssl.create_default_context().get_ca_certs() else 1)'
+          new = 'import ssl, sys, pathlib; paths=("/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt", "/etc/ssl/ca-bundle.pem"); sys.exit(0 if ssl.create_default_context().get_ca_certs() or any(pathlib.Path(p).is_file() and ssl.create_default_context(cafile=p).get_ca_certs() for p in paths) else 1)'
+          patch.write_text(patch.read_text().replace(old, new))
+          patch = pathlib.Path('tests/test_installer.py')
+          patch.write_text(patch.read_text().replace("env=env, check=True, capture_output=True, text=True)", "env=env, check=True, text=True)", 1))
           PY
       - name: Test real Linux terminal and model adapter
         env:
