@@ -3,15 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       source_sha256:
-        description: SHA256 of the uploaded linsail-0.1.0a2-source.zip
+        description: SHA256 of the uploaded linsail-0.1.0a3-source.zip
         required: true
         type: string
 permissions:
   contents: write
 jobs:
   import:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -23,7 +23,7 @@ jobs:
         run: |
           python - <<'PY'
           import hashlib, os, pathlib, zipfile
-          archive = pathlib.Path('linsail-0.1.0a2-source.zip')
+          archive = pathlib.Path('linsail-0.1.0a3-source.zip')
           assert hashlib.sha256(archive.read_bytes()).hexdigest() == os.environ['SOURCE_SHA256'], 'Source checksum mismatch'
           root = pathlib.Path.cwd().resolve()
           with zipfile.ZipFile(archive) as z:
@@ -46,10 +46,24 @@ jobs:
       - name: Build and verify installation
         run: |
           python scripts/build.py
+          python -m pip install pyinstaller==6.22.3
+          python scripts/build_binary.py
+          python scripts/smoke_binary.py dist/linsail-linux-x86_64
           cd dist
           sha256sum --check SHA256SUMS
           LINSAIL_NO_PATH=1 LINSAIL_BIN_DIR="$RUNNER_TEMP/linsail-bin" sh install.sh
           "$RUNNER_TEMP/linsail-bin/linsail" --version
+      - name: Verify without Python or curl in minimal Linux
+        run: |
+          docker run --rm --user 1000:1000 -e HOME=/tmp/home -e SHELL=/bin/bash -v "$PWD/dist:/release:ro" ubuntu:22.04 sh -ec '
+            ! command -v python3
+            ! command -v curl
+            ! command -v wget
+            mkdir -p "$HOME"
+            sh /release/install.sh
+            "$HOME/.local/bin/linsail" --version
+            "$HOME/.local/bin/linsail" doctor
+          '
       - name: Commit unpacked source
         run: |
           git config user.name 'github-actions[bot]'
@@ -60,4 +74,4 @@ jobs:
       - name: Publish alpha download
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v0.1.0a2 dist/* --target "$(git rev-parse HEAD)" --prerelease --title 'LinSail 0.1.0a2 — 启航 Alpha' --notes-file docs/RELEASE_NOTES.md
+        run: gh release create v0.1.0a3 dist/linsail-linux-x86_64 dist/linsail.pyz dist/install.sh dist/install-python.sh dist/SHA256SUMS dist/linsail-0.1.0a3-source.zip dist/THIRD_PARTY_NOTICES.txt --target "$(git rev-parse HEAD)" --prerelease --title 'LinSail 0.1.0a3 — 启航 Alpha' --notes-file docs/RELEASE_NOTES.md
